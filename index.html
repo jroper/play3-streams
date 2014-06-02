@@ -1,0 +1,578 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=1024" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <title>Reactive Streams and Play 3.0</title>
+    <meta name="description" content="Reactive Streams has a lot to offer Play, providing an asynchronous streaming API that is easy to learn and easy to use from both Java and Scala. Play 3.0 will be embracing this new API as the base level IO API, but what implications will this have on Play's architecture? What will happen to iteratees? How much will this impact existing Play applications? This presentation will dive deep into Play's architecture, and show just how reactive streams will be applied to and improve Play." />
+    <meta name="author" content="James Roper" />
+
+    <link href="http://fonts.googleapis.com/css?family=Open+Sans:regular,semibold,italic,italicsemibold|PT+Sans:400,700,400italic,700italic|PT+Serif:400,700,400italic,700italic" rel="stylesheet" />
+
+    <link href="css/main.css" rel="stylesheet" />
+    
+    <link rel="shortcut icon" href="favicon.png" />
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <script src="prettify/run_prettify.js"></script>
+</head>
+
+<body class="impress-not-supported">
+
+<div class="blackOut"></div>
+
+<div id="impress">
+
+    <div id="title" class="step slide" data-x="-3000" data-y="-2000">
+      <h1>Reactive Streams and Play 3.0</h1>
+      <div class="me">James Roper</div>
+      <div class="twitter">@jroper</div>
+      <div class="typesafe"><img src="images/typesafe.png"/></div>
+    </div>
+
+    <div class="step" data-x="-3000" data-y="-1000">
+        <img src="images/kangaroo.jpg" class="full"/>
+    </div>
+    
+    <div id="http" class="step slide" data-x="-3000" data-y="0">
+        <q>What is HTTP?</q>
+    </div>
+    
+    <div id="http-request" class="step slide" data-x="-1500" data-y="0" data-z="-3000">
+        <pre><code>POST /main/screen HTTP/1.1
+Host: earth.com
+User-Agent: CATS
+Accept: base/all
+Content-Type: application/bomb
+Content-Length: 45
+
+You have no chance to survive make your time.</code></pre>
+    </div>
+
+    <div id="http-response" class="step slide" data-x="-1500" data-y="1000" data-z="-3000">
+        <pre><code>HTTP/1.1 403 Forbidden
+Server: Captain
+Content-Type: application/ZIG
+Content-Length: 18
+
+For great justice.</code></pre>
+    </div>
+
+    <div id="http-function" class="step slide" data-x="0" data-y="0">
+        <pre class="prettyprint" class="language-scala"><code>trait EssentialAction extends
+  Request =&gt; Future[Result]
+
+case class Request(
+  header: RequestHeader,
+  body: Bytes
+)
+case class Result(
+  header: ResponseHeader,
+  body: Bytes
+)</pre></code>
+    </div>
+
+    <div id="http-request-body" class="step slide" data-x="1500" data-y="0" data-z="-3000">
+        <pre><code>POST /wall HTTP/1.1
+Host: bar.com
+Content-Type: beer/bottle
+Content-Length: 100000000000
+
+999999999 bottles of beer on the wall,
+999999999 bottles of beer,
+Take one down, pass it around,
+999999998 bottles of beer on the wall.
+</code></pre>
+    </div>
+    
+    <div class="step slide" data-x="1500" data-y="1000" data-z="-3000">
+        <pre class="small-beer"><code>999999998 bottles of beer on the wall,
+999999998 bottles of beer,
+Take one down, pass it around,
+999999997 bottles of beer on the wall.
+
+999999997 bottles of beer on the wall,
+999999997 bottles of beer,
+Take one down, pass it around,
+999999996 bottles of beer on the wall.
+
+999999996 bottles of beer on the wall,
+999999996 bottles of beer,
+Take one down, pass it around,
+999999995 bottles of beer on the wall.
+
+999999995 bottles of beer on the wall,
+999999995 bottles of beer,
+Take one down, pass it around,
+999999994 bottles of beer on the wall.
+
+999999994 bottles of beer on the wall,
+999999994 bottles of beer,
+Take one down, pass it around,
+999999993 bottles of beer on the wall.
+
+999999993 bottles of beer on the wall,
+999999993 bottles of beer,
+Take one down, pass it around,
+999999992 bottles of beer on the wall.
+
+999999992 bottles of beer on the wall,
+999999992 bottles of beer,
+Take one down, pass it around,
+999999991 bottles of beer on the wall.</code></pre>
+    </div>
+
+    <div class="step slide" id="smallest-beer" data-x="1500" data-y="2000" data-z="-3000">
+        <pre class="smallest-beer"><code>999999991 bottles of beer on the wall,
+999999991 bottles of beer,
+Take one down, pass it around,
+999999990 bottles of beer on the wall.
+
+999999990 bottles of beer on the wall,
+999999990 bottles of beer,
+Take one down, pass it around,
+999999989 bottles of beer on the wall.
+
+999999989 bottles of beer on the wall,
+999999989 bottles of beer,
+Take one down, pass it around,
+999999988 bottles of beer on the wall.
+
+999999988 bottles of beer on the wall,
+999999988 bottles of beer,
+Take one down, pass it around,
+999999987 bottles of beer on the wall.
+
+999999987 bottles of beer on the wall,
+999999987 bottles of beer,
+Take one down, pass it around,
+999999986 bottles of beer on the wall.
+
+999999986 bottles of beer on the wall,
+999999986 bottles of beer,
+Take one down, pass it around,
+999999985 bottles of beer on the wall.
+
+999999985 bottles of beer on the wall,
+999999985 bottles of beer,
+Take one down, pass it around,
+999999984 bottles of beer on the wall.
+
+999999984 bottles of beer on the wall,
+999999984 bottles of beer,
+Take one down, pass it around,
+999999983 bottles of beer on the wall.
+
+999999983 bottles of beer on the wall,
+999999983 bottles of beer,
+Take one down, pass it around,
+999999982 bottles of beer on the wall.
+
+999999982 bottles of beer on the wall,
+999999982 bottles of beer,
+Take one down, pass it around,
+999999981 bottles of beer on the wall.
+
+999999981 bottles of beer on the wall,
+999999981 bottles of beer,
+Take one down, pass it around,
+999999980 bottles of beer on the wall.
+
+999999980 bottles of beer on the wall,
+999999980 bottles of beer,
+Take one down, pass it around,
+999999979 bottles of beer on the wall.
+
+999999979 bottles of beer on the wall,
+999999979 bottles of beer,
+Take one down, pass it around,
+999999978 bottles of beer on the wall.
+
+999999978 bottles of beer on the wall,
+999999978 bottles of beer,
+Take one down, pass it around,
+999999977 bottles of beer on the wall.
+
+999999977 bottles of beer on the wall,
+999999977 bottles of beer,
+Take one down, pass it around,
+999999976 bottles of beer on the wall.
+
+999999976 bottles of beer on the wall,
+999999976 bottles of beer,
+Take one down, pass it around,
+999999975 bottles of beer on the wall.
+
+999999975 bottles of beer on the wall,
+999999975 bottles of beer,
+Take one down, pass it around,
+999999974 bottles of beer on the wall.
+
+999999974 bottles of beer on the wall,
+999999974 bottles of beer,
+Take one down, pass it around,
+999999973 bottles of beer on the wall.
+
+999999973 bottles of beer on the wall,
+999999973 bottles of beer,
+Take one down, pass it around,
+999999972 bottles of beer on the wall.
+
+999999972 bottles of beer on the wall,
+999999972 bottles of beer,
+Take one down, pass it around,
+999999971 bottles of beer on the wall.
+
+999999971 bottles of beer on the wall,
+999999971 bottles of beer,
+Take one down, pass it around,
+999999970 bottles of beer on the wall.
+
+999999970 bottles of beer on the wall,
+999999970 bottles of beer,
+Take one down, pass it around,
+999999969 bottles of beer on the wall.
+
+999999969 bottles of beer on the wall,
+999999969 bottles of beer,
+Take one down, pass it around,
+999999968 bottles of beer on the wall.
+
+999999968 bottles of beer on the wall,
+999999968 bottles of beer,
+Take one down, pass it around,
+999999967 bottles of beer on the wall.
+
+999999967 bottles of beer on the wall,
+999999967 bottles of beer,
+Take one down, pass it around,
+999999966 bottles of beer on the wall.
+
+999999966 bottles of beer on the wall,
+999999966 bottles of beer,
+Take one down, pass it around,
+999999965 bottles of beer on the wall.
+
+999999965 bottles of beer on the wall,
+999999965 bottles of beer,
+Take one down, pass it around,
+999999964 bottles of beer on the wall.
+
+999999964 bottles of beer on the wall,
+999999964 bottles of beer,
+Take one down, pass it around,
+999999963 bottles of beer on the wall.
+
+999999963 bottles of beer on the wall,
+999999963 bottles of beer,
+Take one down, pass it around,
+999999962 bottles of beer on the wall.
+
+999999962 bottles of beer on the wall,
+999999962 bottles of beer,
+Take one down, pass it around,
+999999961 bottles of beer on the wall.
+
+999999961 bottles of beer on the wall,
+999999961 bottles of beer,
+Take one down, pass it around,
+999999960 bottles of beer on the wall.
+
+999999960 bottles of beer on the wall,
+999999960 bottles of beer,
+Take one down, pass it around,
+999999959 bottles of beer on the wall.
+
+999999959 bottles of beer on the wall,
+999999959 bottles of beer,
+Take one down, pass it around,
+999999958 bottles of beer on the wall.
+
+999999958 bottles of beer on the wall,
+999999958 bottles of beer,
+Take one down, pass it around,
+999999957 bottles of beer on the wall.
+
+999999957 bottles of beer on the wall,
+999999957 bottles of beer,
+Take one down, pass it around,
+999999956 bottles of beer on the wall.
+
+999999956 bottles of beer on the wall,
+999999956 bottles of beer,
+Take one down, pass it around,
+999999955 bottles of beer on the wall.
+
+999999955 bottles of beer on the wall,
+999999955 bottles of beer,
+Take one down, pass it around,
+999999954 bottles of beer on the wall.
+
+999999954 bottles of beer on the wall,
+999999954 bottles of beer,
+Take one down, pass it around,
+999999953 bottles of beer on the wall.
+
+999999953 bottles of beer on the wall,
+999999953 bottles of beer,
+Take one down, pass it around,
+999999952 bottles of beer on the wall.
+
+999999952 bottles of beer on the wall,
+999999952 bottles of beer,
+Take one down, pass it around,
+999999951 bottles of beer on the wall.
+
+999999951 bottles of beer on the wall,
+999999951 bottles of beer,
+Take one down, pass it around,
+999999950 bottles of beer on the wall.
+
+999999950 bottles of beer on the wall,
+999999950 bottles of beer,
+Take one down, pass it around,
+999999949 bottles of beer on the wall.</code></pre>
+    </div>
+    
+    <div id="http-request-chunked" class="step slide" data-x="1500" data-y="4000" data-z="-3000">
+        <pre><code>POST /play/along HTTP/1.1
+Host: lambchop.com
+Content-Type: closing/credits
+Transfer-Encoding: chunked
+
+180
+This is the song that does not end,
+it just goes on and on my friend,
+some people started singing it not knowing what it was,
+and they'll continue singing it forever just because</code></pre>
+    </div>
+
+    <div id="infinite-body" class="step slide" data-x="1500" data-y="5000" data-z="-3000">
+        <pre class="infinite-body"><code>180
+This is the song that does not end,
+it just goes on and on my friend,
+some people started singing it not knowing what it was,
+and they'll continue singing it forever just because
+
+180
+This is the song that does not end,
+it just goes on and on my friend,
+some people started singing it not knowing what it was,
+and they'll continue singing it forever just because
+
+180
+This is the song that does not end,
+it just goes on and on my friend,
+some people started singing it not knowing what it was,
+and they'll continue singing it forever just because
+
+180
+This is the song that does not end,
+it just goes on and on my friend,
+some people started singing it not knowing what it was,
+and they'll continue singing it forever just because
+
+180
+This is the song that does not end,
+it just goes on and on my friend,
+some people started singing it not knowing what it was,
+and they'll continue singing it forever just because
+
+180
+This is the song that does not end,
+it just goes on and on my friend,
+some people started singing it not knowing what it was,
+and they'll continue singing it forever just because
+
+180
+This is the song that does not end,
+it just goes on and on my friend,
+some people started singing it not knowing what it was,
+and they'll continue singing it forever just because
+
+180
+This is the song that does not end,
+it just goes on and on my friend,
+some people started singing it not knowing what it was,
+and they'll continue singing it forever just because
+
+180
+This is the song that does not end,
+it just goes on and on my friend,
+some people started singing it not knowing what it was,
+and they'll continue singing it forever just because
+
+180
+This is the song that does not end,
+it just goes on and on my friend,
+some people started singing it not knowing what it was,
+and they'll continue singing it forever just because
+
+180
+This is the song that does not end,
+it just goes on and on my friend,
+some people started singing it not knowing what it was,
+and they'll continue singing it forever just because
+
+180
+This is the song that does not end,
+it just goes on and on my friend,
+some people started singing it not knowing what it was,
+and they'll continue singing it forever just because
+
+180
+This is the song that does not end,
+it just goes on and on my friend,
+some people started singing it not knowing what it was,
+and they'll continue singing it forever just because
+
+180
+This is the song that does not end,
+it just goes on and on my friend,
+some people started singing it not knowing what it was,
+and they'll continue singing it forever just because
+
+180
+This is the song that does not end,
+it just goes on and on my friend,
+some people started singing it not knowing what it was,
+and they'll continue singing it forever just because</code></pre>
+    </div>
+ 
+    <div id="iteratees" class="step slide" data-x="3000" data-y="0">
+        <h2>Iteratees</h2>
+        <pre class="prettyprint"><code class="language-scala">trait EssentialAction extends
+  RequestHeader =&gt; Iteratee[Bytes, Response]
+
+case class Response(
+  header: ResponseHeader,
+  body: Enumerator[Bytes]
+)</code></pre>
+    </div>
+
+    <div id="reactive-streams" class="step slide" data-x="4500" data-y="0">
+        <h2>Reactive Streams</h2>
+        <pre class="prettyprint"><code class="language-java">public interface Subscriber&lt;T&gt; {
+    public void onSubscribe(Subscription s);
+    public void onNext(T t);
+    public void onError(Throwable t);
+    public void onComplete();
+}</code></pre>
+    </div>
+
+    <div class="step slide" data-x="6000" data-y="0">
+        <h2>Reactive Streams</h2>
+        <pre class="prettyprint"><code class="language-java">public interface Subscription {
+    public void request(int n);
+    public void cancel();
+}</code></pre>
+    </div>
+
+    <div id="no-response" class="step slide" data-x="7500" data-y="0">
+        Your search - <b>HTTP response</b> - did not match any documents.
+        <br/><br/>
+        Suggestions:
+        <br/><br/>
+        <ul>
+            <li>Make sure that all words are spelled correctly.</li>
+            <li>Try different keywords.</li>
+            <li>Try more general keywords.</li>
+        </ul>
+    </div>
+
+        
+    <div id="accumulator" class="step slide" data-x="9000" data-y="0">
+        <pre class="prettyprint"><code class="language-scala">trait Accumulator[E, A] {
+  def subscriber: Subscriber[E]
+  def future: Future[A]
+
+  ...
+}</code></pre>
+    </div>
+    
+    <div class="step slide" data-x="10500" data-y="0" data-z="-3000">
+        <pre class="prettyprint"><code class="language-scala">def map[B](
+  f: A =&gt; B
+): Accumulator[E, B]
+
+def mapFuture[B](
+  f: A =&gt; Future[B]
+): Accumulator[E, B]
+
+def recover(
+  f: Throwable =&gt; A
+): Accumulator[E, A]
+...</code></pre>
+    </div>
+    
+    <div class="step slide" data-x="10500" data-y="1000" data-z="-3000">
+        <pre class="prettyprint"><code class="language-scala">def through[D](
+  processor: Processor[D, E]
+): Accumulator[D, A]
+...</code></pre>
+    </div>
+
+    <div id="play-reactive-streams" class="step slide" data-x="10500" data-y="2000" data-z="-3000">
+        <pre class="prettyprint"><code class="language-scala">trait EssentialAction extends
+  RequestHeader =&gt; Accumulator[Bytes, Response]</code></pre>
+    </div>
+
+    <div id="body-parser" class="step slide" data-x="10500" data-y="3000" data-z="-3000">
+        <pre class="prettyprint"><code class="language-scala">trait BodyParser[A] extends
+  RequestHeader =&gt; Accumulator[Bytes, A]
+  
+object Action {
+  def async[A](parser: BodyParser[A])(
+    f: Request[A] =&gt; Future[Response]
+  ) = EssentialAction { header =&gt;
+
+    parser(header).mapFuture { body =&gt; 
+      f(Request(header, body))
+    }
+
+  }
+}</code></pre>
+    </div>
+
+    <div id="filter" class="step slide" data-x="10500" data-y="4000" data-z="-3000">
+        <pre class="prettyprint"><code class="language-scala">object LoggingFilter extends EssentialFilter {
+  def apply(next: EssentialAction) =
+
+    EssentialAction { header =&gt;
+
+      val start = System.currentTimeMillis
+      next(header).map { response =&gt;
+    
+        val time = System.currentTimeMillis = start
+        Logger.info(response.status + " response to "
+          + header.path + " in  " + time + "ms")
+        
+        response 
+      }
+    }
+}</code></pre>
+    </div>
+
+</div>
+
+<script src="js/impress.js"></script>
+<script>
+    document.addEventListener("keypress", function(event) {
+        if (event.keyCode == 120 /* x */) {
+            var blackOut = document.getElementsByClassName("blackOut")[0];
+            if (blackOut.style.display == "block") {
+                blackOut.style.display = "none";
+            } else {
+                blackOut.style.display = "block";
+            }
+        }
+        return true;
+    });
+
+    impress().init();
+</script>
+
+</body>
+</html>
+
