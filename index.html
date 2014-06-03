@@ -33,6 +33,7 @@
 
     <div class="step" data-x="-3000" data-y="-1000">
         <img src="images/kangaroo.jpg" class="full"/>
+        <a class="attribution" href="http://www.artmailpress.com/home/postcards">Used by permission of Art Mail Press</a>
     </div>
     
     <div id="http" class="step slide" data-x="-3000" data-y="0">
@@ -450,9 +451,30 @@ case class Response(
   body: Enumerator[Bytes]
 )</code></pre>
     </div>
+    
+    <div id="csv" class="step slide" data-x="3000" data-y="1000">
+        <pre class="prettyprint"><code class="language-scala">def value = takeWhile(c =&gt; c != ',' &amp;&amp; c != '\n').map(v =&gt; v.mkString.trim)
+
+def values(state: Seq[String] = Seq()): Iteratee[Char, Seq[String]] = for {
+  _        &lt;- dropSpaces
+  value    &lt;- value
+  _        &lt;- dropSpaces
+  nextChar &lt;- takeOne
+  values   &lt;- nextChar match {
+    case Some('\n') | None =&gt; Done[Char, Seq[String]](state :+ value)
+    case Some(',')         =&gt; values(state :+ value)
+    case Some(other)       =&gt; Error("Expected, LF or EOF", Input.El(other))
+  }
+} yield values
+
+def csvLines = Enumeratee.grouped(values())</code></pre>
+    </div>
 
     <div id="reactive-streams" class="step slide" data-x="4500" data-y="0">
-        <h2>Reactive Streams</h2>
+        <q>http://www.reactive-streams.org/</q>
+    </div>
+
+    <div class="step slide" data-x="4500" data-y="1000">
         <pre class="prettyprint"><code class="language-java">public interface Subscriber&lt;T&gt; {
     public void onSubscribe(Subscription s);
     public void onNext(T t);
@@ -461,7 +483,7 @@ case class Response(
 }</code></pre>
     </div>
 
-    <div class="step slide" data-x="6000" data-y="0">
+    <div class="step slide" data-x="4500" data-y="2000">
         <h2>Reactive Streams</h2>
         <pre class="prettyprint"><code class="language-java">public interface Subscription {
     public void request(int n);
@@ -469,7 +491,7 @@ case class Response(
 }</code></pre>
     </div>
 
-    <div id="no-response" class="step slide" data-x="7500" data-y="0">
+    <div id="no-response" class="step slide" data-x="6000" data-y="0">
         Your search - <b>HTTP response</b> - did not match any documents.
         <br/><br/>
         Suggestions:
@@ -482,7 +504,7 @@ case class Response(
     </div>
 
         
-    <div id="accumulator" class="step slide" data-x="9000" data-y="0">
+    <div id="accumulator" class="step slide" data-x="7500" data-y="0">
         <pre class="prettyprint"><code class="language-scala">trait Accumulator[E, A] {
   def subscriber: Subscriber[E]
   def future: Future[A]
@@ -491,7 +513,7 @@ case class Response(
 }</code></pre>
     </div>
     
-    <div class="step slide" data-x="10500" data-y="0" data-z="-3000">
+    <div class="step slide" data-x="9000" data-y="0" data-z="-3000">
         <pre class="prettyprint"><code class="language-scala">def map[B](
   f: A =&gt; B
 ): Accumulator[E, B]
@@ -506,19 +528,19 @@ def recover(
 ...</code></pre>
     </div>
     
-    <div class="step slide" data-x="10500" data-y="1000" data-z="-3000">
+    <div class="step slide" data-x="9000" data-y="1000" data-z="-3000">
         <pre class="prettyprint"><code class="language-scala">def through[D](
   processor: Processor[D, E]
 ): Accumulator[D, A]
 ...</code></pre>
     </div>
 
-    <div id="play-reactive-streams" class="step slide" data-x="10500" data-y="2000" data-z="-3000">
+    <div id="play-reactive-streams" class="step slide" data-x="9000" data-y="2000" data-z="-3000">
         <pre class="prettyprint"><code class="language-scala">trait EssentialAction extends
   RequestHeader =&gt; Accumulator[Bytes, Response]</code></pre>
     </div>
 
-    <div id="body-parser" class="step slide" data-x="10500" data-y="3000" data-z="-3000">
+    <div id="body-parser" class="step slide" data-x="9000" data-y="3000" data-z="-3000">
         <pre class="prettyprint"><code class="language-scala">trait BodyParser[A] extends
   RequestHeader =&gt; Accumulator[Bytes, A]
   
@@ -535,7 +557,7 @@ object Action {
 }</code></pre>
     </div>
 
-    <div id="filter" class="step slide" data-x="10500" data-y="4000" data-z="-3000">
+    <div id="filter" class="step slide" data-x="9000" data-y="4000" data-z="-3000">
         <pre class="prettyprint"><code class="language-scala">object LoggingFilter extends EssentialFilter {
   def apply(next: EssentialAction) =
 
@@ -552,6 +574,61 @@ object Action {
       }
     }
 }</code></pre>
+    </div>
+
+    <div id="streams" class="step slide" data-x="10500" data-y="0">
+        <pre class="prettyprint"><code class="language-scala">implicit val system = ActorSystem("Sys")
+val materializer = FlowMaterializer(MaterializerSettings())
+
+val LoglevelPattern = """.*\[(DEBUG|INFO|WARN|ERROR)\].*""".r
+
+// read lines from a log file
+val source = Source.fromFile("src/main/resources/logfile.txt", "utf-8")
+val completedFuture = Flow(source.getLines()).
+  // group them by log level
+  groupBy {
+    case LoglevelPattern(level) =&gt; level
+    case other                  =&gt; "OTHER"
+  }.
+  // write lines of each group to a separate file
+  foreach {
+    case (level, producer) =&gt;
+      val output = new PrintWriter(new FileOutputStream(s"target/log-$level.txt"), true)
+      Flow(producer).
+        foreach(line =&gt; output.println(line)).
+        // close resource when the group stream is completed
+        onComplete(materializer)(_ =&gt; Try(output.close()))
+  }.
+  onComplete(materializer) { _ =&gt;
+    Try(source.close())
+    system.shutdown()
+  }</code></pre>
+    </div>
+    
+    <div class="step slide" data-x="12000" data-y="0">
+        <q>What about iteratees?</q>
+    </div>
+
+    <div id="play24" class="step slide" data-x="13500" data-y="0">
+        <q>What about Play 2.4?</q>
+    </div>
+    
+    <div id="java" class="step slide" data-x="15000" data-y="0">
+        <q>What about Java?</q>
+    </div>
+
+    <div class="step slide" data-x="16500" data-y="0">
+        <pre class="prettyprint"><code class="language-java">public final Action index = action(request -&gt; {
+  return ok("Hello world");
+});
+
+public Action load(Long id) {
+  return async(request -&gt; {
+    return Foos.load(id).map(foo -&gt;
+        ok(Json.toJson(foo)));
+  });
+}
+</code></pre>
     </div>
 
 </div>

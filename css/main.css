@@ -128,9 +128,9 @@ a:visited {
 
 .slide q {
     display: block;
-    font-size: 50px;
+    font-size: 54px;
     line-height: 72px;
-    margin: 100px 50px 0 50px;
+    margin: 200px 50px 0 50px;
     font-style: italic;
 }
 
@@ -185,8 +185,13 @@ a:visited {
     margin-left: 25px;
 }
 
-.slide q strong {
-    white-space: nowrap;
+#csv pre.prettyprint {
+    font-size: 16px;
+}
+
+#streams pre.prettyprint {
+    font-size: 16px;
+    line-height: 1.2;
 }
 
 #title, #conclusion {
@@ -224,3 +229,14 @@ a:visited {
   width: 100%;
 }
 
+.attribution {
+    font-size: 12px;
+    text-align: center;
+    display: block;
+    color: gray;
+    font-family: sans-serif;
+}
+
+.attribution:visited {
+    color: gray;
+}
